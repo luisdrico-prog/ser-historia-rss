@@ -1,7 +1,12 @@
 {
-  "cursor": 0,
-  "batch_since": "2026-08-27T08:39:43.130384+00:00",
+  "mode": "cumulative",
+  "exposed_historical": 250,
+  "last_growth": "2026-08-27T14:30:21.985471+00:00",
   "recent_keep": 75,
-  "backfill_batch": 100,
-  "historical_total": 0
+  "backfill_batch": 250,
+  "backfill_hold_hours": 6,
+  "historical_total": 850,
+  "total_exposed": 325,
+  "catalog_total": 925,
+  "complete": false
 }
