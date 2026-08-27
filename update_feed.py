@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-SER Historia — RSS histórico completo para Feedly
+SER Historia — RSS histórico completo para Feedly (v2)
 Fuente: Web oficial de Nacho Ares (nachoares.com)
 
 Funcionamiento:
@@ -74,10 +74,11 @@ def canonical_episode_url(href: str | None) -> str | None:
     u = urljoin(BASE, href)
     if "/ser_historia/" not in u:
         return None
-    # Las fichas de programas suelen contener ser-historia-N en el slug.
-    if not re.search(r"/ser_historia/[^?#]*ser-historia-\d+", u, re.I):
-        return None
-    return u.split("#", 1)[0].split("?", 1)[0].rstrip("/") + "/"
+    # No exigimos que el slug contenga "ser-historia-N":
+    # hay episodios con slugs especiales, por ejemplo el 900:
+    # /ser_historia/especial-900-desde-el-turunuelo/
+    u = u.split("#", 1)[0].split("?", 1)[0]
+    return u.rstrip("/") + "/"
 
 def discover_latest() -> str:
     text = fetch(INDEX_URL)
@@ -87,7 +88,11 @@ def discover_latest() -> str:
         u = canonical_episode_url(a.get("href"))
         if not u:
             continue
-        m = re.search(r"ser-historia-(\d+)", u, re.I)
+        # Primero intenta obtener el número del slug; si no está, usa el texto del enlace.
+        m = re.search(r"(?:ser-historia-|especial-)(\d+)", u, re.I)
+        if not m:
+            label = " ".join(a.stripped_strings)
+            m = re.search(r"\b(?:SER\s+Historia\s+)?(\d{1,4})\b", label, re.I)
         if m:
             candidates.append((int(m.group(1)), u))
     if not candidates:
@@ -175,7 +180,10 @@ def parse_episode(url: str) -> tuple[dict, str | None]:
             u = canonical_episode_url(a["href"])
             if not u:
                 continue
-            m = re.search(r"ser-historia-(\d+)", u, re.I)
+            m = re.search(r"(?:ser-historia-|especial-)(\d+)", u, re.I)
+            if not m:
+                label = " ".join(a.stripped_strings)
+                m = re.search(r"\b(?:SER\s+Historia\s+)?(\d{1,4})\b", label, re.I)
             if m:
                 n = int(m.group(1))
                 if n < episode_num:
@@ -222,6 +230,9 @@ def crawl_catalog() -> list[dict]:
     old = load_json(CATALOG_FILE, [])
     old_by_key = {item_key(x): x for x in old}
     old_urls = {x.get("url") for x in old if x.get("url")}
+    old_numbers = [x.get("number") for x in old if isinstance(x.get("number"), int)]
+    oldest_known_number = min(old_numbers) if old_numbers else None
+    archive_complete = oldest_known_number == 1
 
     latest = discover_latest()
     log(f"Programa más reciente detectado: {latest}")
@@ -241,13 +252,15 @@ def crawl_catalog() -> list[dict]:
         k = item_key(item)
 
         if k in old_by_key or url in old_urls:
-            # Refresca los primeros programas conocidos y, una vez hallado
-            # el catálogo existente, detén el recorrido para no castigar la web.
+            # Si el archivo ya llegó al programa 1, basta con detenernos al
+            # reencontrar el catálogo conocido. Si aún está incompleto, seguimos
+            # atravesando los episodios conocidos hasta alcanzar el borde antiguo
+            # y continuar desde ahí (esto permite reanudar una primera carga cortada).
             if not hit_known:
                 old_by_key[k] = {**old_by_key.get(k, {}), **item}
                 refreshed += 1
             hit_known = True
-            if old:
+            if old and archive_complete:
                 break
         else:
             old_by_key[k] = item
