@@ -1,12 +1,12 @@
 {
   "mode": "cumulative",
-  "exposed_historical": 858,
-  "last_growth": "2026-10-18T11:30:31.051326+00:00",
+  "exposed_historical": 859,
+  "last_growth": "2026-10-25T11:53:10.388577+00:00",
   "recent_keep": 75,
   "backfill_batch": 250,
   "backfill_hold_hours": 6,
-  "historical_total": 858,
-  "total_exposed": 933,
-  "catalog_total": 933,
+  "historical_total": 859,
+  "total_exposed": 934,
+  "catalog_total": 934,
   "complete": true
 }
